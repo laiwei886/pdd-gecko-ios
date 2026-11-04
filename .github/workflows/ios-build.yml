@@ -11,7 +11,9 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
+    # XcodeGen 2.x 会生成 objectVersion 77（Xcode 16 格式），
+    # 因此使用自带 Xcode 16 的 macos-15 运行器。
+    runs-on: macos-15
     timeout-minutes: 40
 
     steps:
