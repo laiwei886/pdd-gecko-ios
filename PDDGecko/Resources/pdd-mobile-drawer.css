@@ -1,0 +1,495 @@
+/* 会话列表：点“会话”直接全屏切换，不做侧滑覆盖 */
+:root {
+  --pdd-drawer-w: 100vw;
+}
+
+.left-panel {
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  min-width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100dvh !important;
+  z-index: 80 !important;
+  background: #fff !important;
+  display: none !important;
+}
+
+body.pdd-mobile-drawer .left-panel {
+  display: flex !important;
+}
+
+#pdd-mobile-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+body.pdd-mobile-drawer #pdd-mobile-backdrop {
+  display: none !important;
+}
+
+/* 抽屉里恢复账号头和会话 tabs */
+body .left-panel .header.panel-tab-header {
+  display: flex !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  padding: 0 10px !important;
+  align-items: center !important;
+}
+
+body .left-panel .header.panel-tab-header .avatar {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+}
+
+body .left-panel .header.panel-tab-header .nickname {
+  font-size: 14px !important;
+  max-width: 150px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* 抽屉头右侧的在线/忙碌/离线切换按钮 */
+#pdd-mobile-status {
+  margin-left: auto !important;
+  flex: 0 0 auto !important;
+  height: 28px !important;
+  padding: 0 12px !important;
+  border-radius: 14px !important;
+  border: 1px solid #d7dbe0 !important;
+  background: #f6f8fa !important;
+  color: #333 !important;
+  font-size: 13px !important;
+  line-height: 26px !important;
+  z-index: 2 !important;
+}
+
+#pdd-mobile-status[data-state="online"] {
+  background: #e8f7ee !important;
+  border-color: #9ed8b4 !important;
+  color: #127c3c !important;
+}
+
+#pdd-mobile-status[data-state="busy"] {
+  background: #fff5e6 !important;
+  border-color: #f0c680 !important;
+  color: #9a5c00 !important;
+}
+
+#pdd-mobile-status[data-state="offline"] {
+  background: #f2f3f5 !important;
+  border-color: #cfd3d9 !important;
+  color: #666 !important;
+}
+
+body .left-panel .header.panel-tab-header .setting,
+body .left-panel .header.panel-tab-header .create-conv,
+body .left-panel .header.panel-tab-header .icon-pc-container {
+  display: none !important;
+}
+
+body .left-panel .content {
+  height: calc(100dvh - 52px) !important;
+}
+
+/* 保留官方全部分组：收藏会话、咨询未下单、咨询下单未付款、官方消息等 */
+body .left-panel .content > div {
+  display: block !important;
+}
+
+body .left-panel .content > .conv-tab-wrapper {
+  display: flex !important;
+}
+
+body .left-panel .content > .conv-tab-wrapper {
+  display: flex !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  align-items: center !important;
+  padding: 4px 8px !important;
+}
+
+body .left-panel .conv-tab {
+  display: flex !important;
+  width: 100% !important;
+  height: 36px !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+body .left-panel .conv-today,
+body .left-panel .conv-recent {
+  flex: 1 !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  text-align: center !important;
+  font-size: 13px !important;
+  border-radius: 8px !important;
+  color: #666 !important;
+}
+
+body .left-panel .conv-today.sel,
+body .left-panel .conv-recent.sel,
+body .left-panel .conv-today.active,
+body .left-panel .conv-recent.active,
+#pdd-mobile-fav-tab.sel,
+#pdd-mobile-fav-tab.active {
+  background: #eef4ff !important;
+  color: #1677ff !important;
+  font-weight: 600 !important;
+}
+
+body .left-panel .conv-today,
+body .left-panel .conv-recent {
+  transition: background 0.15s ease, color 0.15s ease !important;
+}
+
+body .left-panel .tabs-active-line {
+  display: none !important;
+}
+
+body .left-panel .transfer-chat-item-btn {
+  display: none !important;
+}
+
+body .left-panel .content {
+  height: calc(100dvh - 52px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+body .left-panel .chat-list-box {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+body .left-panel .chat-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 10px 12px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+body .left-panel .chat-item > * {
+  min-width: 0 !important;
+}
+
+body .left-panel .chat-item .nickname-span {
+  font-size: 14px !important;
+  max-width: 100% !important;
+  padding-right: 52px !important;
+}
+
+body .left-panel .chat-message-content {
+  display: block !important;
+  font-size: 12px !important;
+  color: #999 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* 会话项铺满整行、去掉圆角，黄底与官方一致（更浅） */
+body .left-panel .chat-list-box,
+body .left-panel .content {
+  padding: 0 !important;
+}
+
+body .left-panel .chat-item {
+  margin: 0 !important;
+  border-radius: 0 !important;
+  background-color: #fffaf2 !important;
+}
+
+/* 第三个页签：收藏会话（参考官方 App 的三页签布局） */
+#pdd-mobile-fav-tab {
+  flex: 1 !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  text-align: center !important;
+  font-size: 13px !important;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+  color: #666 !important;
+}
+
+#pdd-mobile-fav-tab.sel {
+  background: #eef4ff !important;
+  color: #1677ff !important;
+  font-weight: 600 !important;
+}
+
+/* 收藏会话栏：只在“收藏会话”页签下显示 */
+#pdd-fav-box {
+  display: none !important;
+  padding: 0 !important;
+  border-bottom: 1px solid #f0f1f3 !important;
+  background: #fff !important;
+}
+
+body.pdd-fav-view #pdd-fav-box {
+  display: block !important;
+}
+
+/* 收藏视图：隐藏官方列表，只显示克隆出来的官方“收藏会话”分组 */
+body.pdd-fav-view .left-panel .chat-list-box {
+  display: none !important;
+}
+
+body.pdd-fav-view #pdd-fav-box {
+  display: block !important;
+  padding: 0 !important;
+}
+
+body.pdd-fav-view #pdd-fav-box .chat-item {
+  width: 100% !important;
+}
+
+
+body.pdd-fav-view #pdd-fav-list {
+  display: block !important;
+}
+
+body.pdd-fav-view #pdd-fav-list .pdd-fav-chip {
+  display: block !important;
+  width: 100% !important;
+  text-align: left !important;
+  border: none !important;
+  border-bottom: 1px solid #f0f1f3 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: #222 !important;
+  font-size: 15px !important;
+  padding: 14px 16px !important;
+}
+
+#pdd-fav-box .pdd-fav-title {
+  font-size: 13px !important;
+  color: #222 !important;
+  font-weight: 600 !important;
+  margin-bottom: 6px !important;
+}
+
+#pdd-fav-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+
+#pdd-fav-list .pdd-fav-chip {
+  border: 1px solid #d7dbe0 !important;
+  background: #f7f9fc !important;
+  color: #1677ff !important;
+  border-radius: 14px !important;
+  padding: 4px 12px !important;
+  font-size: 13px !important;
+  line-height: 18px !important;
+}
+
+#pdd-fav-list .pdd-fav-empty {
+  color: #999 !important;
+  font-size: 12px !important;
+}
+
+body .left-panel .chat-item {
+  position: relative !important;
+}
+
+body .left-panel .chat-time {
+  display: block !important;
+  position: absolute !important;
+  right: 12px !important;
+  top: 10px !important;
+  font-size: 11px !important;
+  color: #999 !important;
+}
+
+/* 中栏始终全宽，抽屉只是覆盖 */
+.other-container {
+  left: 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+}
+
+.middle-panel {
+  width: 100vw !important;
+  max-width: 100vw !important;
+}
+
+.reply-box {
+  left: 0 !important;
+}
+
+/* 旧 collapsed 类不再使用；保留时只让聊天全宽 */
+body.pdd-mobile-collapsed .left-panel {
+  display: none !important;
+}
+
+body.pdd-mobile-collapsed .other-container {
+  left: 0 !important;
+  width: 100vw !important;
+}
+
+body.pdd-mobile-collapsed .middle-panel {
+  width: 100vw !important;
+  max-width: 100vw !important;
+}
+
+body.pdd-mobile-collapsed .reply-box {
+  left: 0 !important;
+}
+
+/* 新手引导/聚光灯遮罩：直接隐藏，避免挡住订单面板和输入 */
+[class*="guide-mask"],
+[class*="guideMask"],
+[class*="guide-mask-wrap"],
+[class*="novice-guide"],
+[class*="newbie-guide"],
+[class*="driver-popover"],
+[class*="introjs"],
+[class*="onboarding-mask"] {
+  display: none !important;
+}
+
+/* 收藏会话：克隆块统一成普通会话行的紧凑布局 */
+#pdd-fav-box .pdd-fav-clone {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: #fff !important;
+  max-width: 100vw !important;
+  overflow: hidden !important;
+}
+
+#pdd-fav-box .pdd-fav-clone .chat-item,
+#pdd-fav-box .pdd-fav-clone li {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  min-height: 56px !important;
+  padding: 10px 12px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+#pdd-fav-box .pdd-fav-clone img {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  flex: 0 0 40px !important;
+}
+
+#pdd-fav-box .pdd-fav-clone [class*="avatar"] {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  border-radius: 50% !important;
+  flex: 0 0 40px !important;
+  overflow: hidden !important;
+}
+
+#pdd-fav-box .pdd-fav-clone .nickname-span,
+#pdd-fav-box .pdd-fav-clone .nickname {
+  font-size: 14px !important;
+  max-width: 60% !important;
+}
+
+#pdd-fav-box .pdd-fav-clone .chat-message-content {
+  font-size: 12px !important;
+  color: #999 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+#pdd-fav-box .pdd-fav-clone .chat-time {
+  position: static !important;
+  margin-left: auto !important;
+  font-size: 11px !important;
+  color: #999 !important;
+}
+
+/* 收藏会话：重建的标准行（与普通会话行一致） */
+#pdd-fav-box .pdd-fav-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  height: 56px !important;
+  padding: 0 12px !important;
+  box-sizing: border-box !important;
+  background: #fff !important;
+  border-bottom: 1px solid #f2f3f5 !important;
+  overflow: hidden !important;
+}
+
+#pdd-fav-box .pdd-fav-avatar {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
+  border-radius: 50% !important;
+  object-fit: cover !important;
+  flex: 0 0 40px !important;
+  background: #f2f3f5 !important;
+}
+
+#pdd-fav-box .pdd-fav-main {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+}
+
+#pdd-fav-box .pdd-fav-name {
+  font-size: 14px !important;
+  color: #222 !important;
+  line-height: 20px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#pdd-fav-box .pdd-fav-msg {
+  font-size: 12px !important;
+  color: #999 !important;
+  line-height: 18px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+#pdd-fav-box .pdd-fav-time {
+  flex: 0 0 auto !important;
+  font-size: 11px !important;
+  color: #999 !important;
+  margin-left: 8px !important;
+}
+
+#pdd-fav-box .pdd-fav-empty {
+  padding: 16px !important;
+  font-size: 13px !important;
+  color: #999 !important;
+}

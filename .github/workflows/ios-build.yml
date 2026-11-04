@@ -1,0 +1,72 @@
+name: iOS Build (unsigned IPA)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    paths:
+      - "PDDGecko/**"
+      - "project.yml"
+      - ".github/workflows/ios-build.yml"
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build unsigned archive (device arm64)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project PDDGecko.xcodeproj \
+            -scheme PDDGecko \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/PDDGecko.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            archive | tee build.log
+
+      - name: Package unsigned IPA
+        run: |
+          APP=$(find build/PDDGecko.xcarchive/Products/Applications -maxdepth 1 -name "*.app")
+          echo "app: $APP"
+          mkdir -p build/ipa/Payload
+          cp -R "$APP" build/ipa/Payload/
+          cd build/ipa
+          zip -qry ../PDDGecko-unsigned.ipa Payload
+          cd ../..
+          ls -lh build/PDDGecko-unsigned.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PDDGecko-unsigned-ipa
+          path: build/PDDGecko-unsigned.ipa
+          retention-days: 14
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 7
