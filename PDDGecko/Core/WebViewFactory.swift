@@ -47,7 +47,7 @@ enum WebViewFactory {
     /// 删除账号时清掉它自己的 Cookie/缓存，不影响其它账号。
     static func clearData(for account: Account, completion: (() -> Void)? = nil) {
         if #available(iOS 17.0, *), let uuid = UUID(uuidString: account.id) {
-            WKWebsiteDataStore.remove(forIdentifier: uuid) { completion?() }
+            WKWebsiteDataStore.remove(forIdentifier: uuid) { _ in completion?() }
         } else {
             completion?()
         }
