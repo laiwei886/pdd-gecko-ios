@@ -5,6 +5,10 @@ options:
     iOS: "17.0"
   createIntermediateGroups: true
   generateEmptyDirectories: true
+  # 固定工程格式为 Xcode 15 可读的版本，避免云端 Xcode 版本不一致导致
+  # "Unable to read project" 错误。
+  xcodeVersion: "15.4"
+  objectVersion: 56
 
 settings:
   base:

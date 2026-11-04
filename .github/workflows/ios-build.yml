@@ -31,6 +31,14 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      - name: Verify project
+        run: |
+          ls -la
+          echo "--- xcodeproj ---"
+          ls -la PDDGecko.xcodeproj || true
+          echo "--- xcodebuild -list ---"
+          xcodebuild -list -project PDDGecko.xcodeproj || true
+
       - name: Build unsigned archive (device arm64)
         run: |
           set -o pipefail
