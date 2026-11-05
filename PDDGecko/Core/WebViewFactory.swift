@@ -21,6 +21,8 @@ enum WebViewFactory {
         configuration.websiteDataStore = dataStore(for: account)
         configuration.allowsInlineMediaPlayback = true
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
+        // 允许网页 JS 打开新窗口（商品规格弹窗里的“查看详情”等依赖此行为）
+        configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
         configuration.userContentController.removeAllUserScripts()
         Injection.scripts().forEach {
             configuration.userContentController.addUserScript($0)

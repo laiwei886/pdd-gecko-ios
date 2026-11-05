@@ -35,21 +35,8 @@ struct ContentView: View {
                 onMore: { moreMenu = true }
             )
 
-            ZStack(alignment: .leading) {
-                content
-                // 屏幕左边缘 20pt 手势区：右滑打开/关闭会话列表，不干扰页面滚动
-                Color.clear
-                    .frame(width: 20)
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 12)
-                            .onEnded { value in
-                                if value.translation.width > 60 {
-                                    toggleList()
-                                }
-                            }
-                    )
-            }
+            // 直接放 WebView；左边缘滑动手势已移除（会挡住页面左侧可点击元素）
+            content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color.white)

@@ -39,8 +39,13 @@ final class NavigationGuard: NSObject, WKNavigationDelegate, WKUIDelegate {
                  createWebViewWith configuration: WKWebViewConfiguration,
                  for navigationAction: WKNavigationAction,
                  windowFeatures: WKWindowFeatures) -> WKWebView? {
+        // 商品详情等链接常以 window.open/target=_blank 打开；
+        // 直接在当前 WebView 加载，让用户看到内容而不是毫无反应。
         if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
-            webView.load(URLRequest(url: url))
+            let scheme = (url.scheme ?? "").lowercased()
+            if scheme == "http" || scheme == "https" {
+                webView.load(URLRequest(url: url))
+            }
         }
         return nil
     }
