@@ -1,21 +1,22 @@
 import SwiftUI
 
-/// 顶部账号栏：返回按钮 + 账号 chip + 加号 + 会话按钮。
+/// 顶部账号栏：返回 + 账号 chip + 加号 + 订单 + 更多。
 struct AccountBarView: View {
     @ObservedObject var store: AccountStore
     var onAdd: () -> Void
     var onRename: (Account) -> Void
     var onDelete: (Account) -> Void
-    var onToggleList: () -> Void
     var onBack: () -> Void
+    var onOrders: () -> Void
+    var onMore: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Button(action: onBack) {
                 Text("←")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.blue)
-                    .frame(width: 34, height: 28)
+                    .frame(width: 32, height: 28)
                     .background(Color.blue.opacity(0.08))
                     .clipShape(Capsule())
             }
@@ -32,26 +33,37 @@ struct AccountBarView: View {
             }
 
             Button(action: onAdd) {
-                Text("＋账号")
-                    .font(.system(size: 13))
+                Text("＋")
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundColor(.blue)
-                    .padding(.horizontal, 12)
-                    .frame(height: 28)
+                    .frame(width: 32, height: 28)
                     .background(Color.blue.opacity(0.08))
                     .clipShape(Capsule())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("新增账号")
 
-            Button(action: onToggleList) {
-                Text("会话")
-                    .font(.system(size: 13))
+            Button(action: onOrders) {
+                Image(systemName: "doc.text")
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundColor(.blue)
-                    .padding(.horizontal, 12)
-                    .frame(height: 28)
+                    .frame(width: 32, height: 28)
                     .background(Color.blue.opacity(0.08))
                     .clipShape(Capsule())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("订单")
+
+            Button(action: onMore) {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.blue)
+                    .frame(width: 32, height: 28)
+                    .background(Color.blue.opacity(0.08))
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("更多操作")
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -68,7 +80,7 @@ struct AccountBarView: View {
                 .font(.system(size: 13, weight: active ? .semibold : .regular))
                 .foregroundColor(active ? .white : Color(white: 0.2))
                 .lineLimit(1)
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 12)
                 .frame(height: 28)
                 .background(active ? Color.blue : Color(white: 0.95))
                 .clipShape(Capsule())

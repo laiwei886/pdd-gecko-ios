@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var deleteTarget: Account?
     @State private var toast: String?
     @State private var listOpen = false
+    @State private var moreMenu = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,8 +30,9 @@ struct ContentView: View {
                 onDelete: { account in
                     deleteTarget = account
                 },
-                onToggleList: { toggleList() },
-                onBack: { handleBack() }
+                onBack: { handleBack() },
+                onOrders: { handleOrders() },
+                onMore: { moreMenu = true }
             )
 
             ZStack(alignment: .leading) {
@@ -109,6 +111,15 @@ struct ContentView: View {
         } message: { account in
             Text("将清除“\(account.name)”的登录状态与本地数据，其他账号不受影响。")
         }
+        .confirmationDialog("更多操作", isPresented: $moreMenu, titleVisibility: .visible) {
+            Button("订单") { handleOrders() }
+            Button("转移会话") { tapSelector(".transfer-chat-item-btn", label: "转移会话") }
+            Button("收藏/取消收藏") { tapSelector("[class*='collect'], [class*='star']", label: "收藏") }
+            Button("加入黑名单") { tapSelector("[class*='black'], [class*='block']", label: "黑名单") }
+            Button("备注") { tapSelector("[class*='remark'], [class*='note']", label: "备注") }
+            Button("刷新页面") { reloadPage() }
+            Button("取消", role: .cancel) {}
+        }
         .onReceive(NotificationCenter.default.publisher(for: .pddBlockedNavigation)) { _ in
             showToast("已拦截 App 下载/外部跳转")
         }
@@ -141,6 +152,55 @@ struct ContentView: View {
             ? "document.body.classList.add('pdd-mobile-drawer');"
             : "document.body.classList.remove('pdd-mobile-drawer');"
         webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    /// 订单入口：切换网页版的订单面板（与安卓壳同一套 class）。
+    private func handleOrders() {
+        guard let account = store.activeAccount,
+              let webView = pool.existing(account.id) else { return }
+        let js = """
+        (function () {
+          document.body.classList.toggle('pdd-mobile-orders');
+          return document.body.classList.contains('pdd-mobile-orders');
+        })();
+        """
+        webView.evaluateJavaScript(js) { result, _ in
+            let open = (result as? Bool) ?? false
+            showToast(open ? "已打开订单" : "已关闭订单")
+        }
+    }
+
+    /// 在网页里点击指定选择器；找不到就提示网页版不支持，避免静默失败。
+    private func tapSelector(_ selector: String, label: String) {
+        guard let account = store.activeAccount,
+              let webView = pool.existing(account.id) else { return }
+        let js = """
+        (function () {
+          try {
+            var el = document.querySelector('\(selector)');
+            if (!el) { return 'missing'; }
+            el.click();
+            return 'ok';
+          } catch (e) {
+            return 'error';
+          }
+        })();
+        """
+        webView.evaluateJavaScript(js) { result, _ in
+            let status = (result as? String) ?? "missing"
+            if status == "ok" {
+                showToast("已执行：\(label)")
+            } else {
+                showToast("网页版没有“\(label)”入口")
+            }
+        }
+    }
+
+    private func reloadPage() {
+        guard let account = store.activeAccount,
+              let webView = pool.existing(account.id) else { return }
+        webView.reload()
+        showToast("已刷新")
     }
 
     /// 顶部返回键：优先关会话列表，其次回会话列表，再次走浏览历史，最后回工作台。
