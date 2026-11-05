@@ -1,15 +1,27 @@
 import SwiftUI
 
-/// 顶部账号栏：账号 chip + 加号 + 会话按钮。
+/// 顶部账号栏：返回按钮 + 账号 chip + 加号 + 会话按钮。
 struct AccountBarView: View {
     @ObservedObject var store: AccountStore
     var onAdd: () -> Void
     var onRename: (Account) -> Void
     var onDelete: (Account) -> Void
     var onToggleList: () -> Void
+    var onBack: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
+            Button(action: onBack) {
+                Text("←")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.blue)
+                    .frame(width: 34, height: 28)
+                    .background(Color.blue.opacity(0.08))
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("返回")
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     ForEach(store.accounts) { account in

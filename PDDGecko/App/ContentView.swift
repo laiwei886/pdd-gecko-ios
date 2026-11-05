@@ -29,7 +29,8 @@ struct ContentView: View {
                 onDelete: { account in
                     deleteTarget = account
                 },
-                onToggleList: { toggleList() }
+                onToggleList: { toggleList() },
+                onBack: { handleBack() }
             )
 
             ZStack(alignment: .leading) {
@@ -140,6 +141,33 @@ struct ContentView: View {
             ? "document.body.classList.add('pdd-mobile-drawer');"
             : "document.body.classList.remove('pdd-mobile-drawer');"
         webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    /// 顶部返回键：优先关会话列表，其次回会话列表，再次走浏览历史，最后回工作台。
+    private func handleBack() {
+        guard let account = store.activeAccount,
+              let webView = pool.existing(account.id) else { return }
+        let url = webView.url?.absoluteString ?? ""
+        webView.evaluateJavaScript("document.body.classList.contains('pdd-mobile-drawer')") { result, _ in
+            if let open = result as? Bool, open {
+                webView.evaluateJavaScript("document.body.classList.remove('pdd-mobile-drawer')")
+                listOpen = false
+                return
+            }
+            if url.contains("chat-merchant") {
+                webView.evaluateJavaScript("document.body.classList.add('pdd-mobile-drawer')")
+                listOpen = true
+                return
+            }
+            if webView.canGoBack {
+                webView.goBack()
+            } else if url.contains("/login") {
+                webView.load(URLRequest(url: WebViewFactory.startURL))
+            } else {
+                webView.evaluateJavaScript("document.body.classList.add('pdd-mobile-drawer')")
+                listOpen = true
+            }
+        }
     }
 
     private func showToast(_ text: String) {
