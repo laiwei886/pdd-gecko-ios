@@ -36,17 +36,10 @@ struct ContentView: View {
                 onMore: { moreMenu = true }
             )
 
-            // 所有账号的 WebView 都留在视图层级里（非当前账号用透明度隐藏），
+            // 所有账号的 WebView 挂在同一个容器里（非当前账号透明度极低但仍在视图树），
             // 这样后台账号也能持续收消息，只在 chip 上显示未读数。
-            ZStack {
-                ForEach(store.accounts) { account in
-                    WebViewContainer(webView: pool.view(for: account))
-                        .opacity(account.id == store.activeId ? 1 : 0.001)
-                        .allowsHitTesting(account.id == store.activeId)
-                        .zIndex(account.id == store.activeId ? 1 : 0)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            WebViewsHost(accounts: store.accounts, activeId: store.activeId, pool: pool)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color.white)
         .ignoresSafeArea(.keyboard, edges: .bottom)
