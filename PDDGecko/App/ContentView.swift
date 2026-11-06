@@ -19,6 +19,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             AccountBarView(
                 store: store,
+                unread: pool.unread,
                 onAdd: {
                     addName = "账号\(store.accounts.count + 1)"
                     showAdd = true
@@ -35,8 +36,16 @@ struct ContentView: View {
                 onMore: { moreMenu = true }
             )
 
-            // 直接放 WebView；左边缘滑动手势已移除（会挡住页面左侧可点击元素）
-            content
+            // 所有账号的 WebView 都留在视图层级里（非当前账号用透明度隐藏），
+            // 这样后台账号也能持续收消息，只在 chip 上显示未读数。
+            ZStack {
+                ForEach(store.accounts) { account in
+                    WebViewContainer(webView: pool.view(for: account))
+                        .opacity(account.id == store.activeId ? 1 : 0.001)
+                        .allowsHitTesting(account.id == store.activeId)
+                        .zIndex(account.id == store.activeId ? 1 : 0)
+                }
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color.white)
@@ -114,20 +123,6 @@ struct ContentView: View {
             if let error = note.object as? Error {
                 showToast("网络异常：\((error as NSError).code)")
             }
-        }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if let account = store.activeAccount {
-            WebViewContainer(webView: pool.view(for: account))
-                .id(account.id)
-        } else {
-            VStack(spacing: 8) {
-                ProgressView()
-                Text("正在准备账号…").font(.system(size: 13)).foregroundColor(.gray)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 

@@ -3,6 +3,7 @@ import SwiftUI
 /// 顶部账号栏：返回 + 账号 chip + 加号 + 订单 + 更多。
 struct AccountBarView: View {
     @ObservedObject var store: AccountStore
+    var unread: [String: Int]
     var onAdd: () -> Void
     var onRename: (Account) -> Void
     var onDelete: (Account) -> Void
@@ -75,15 +76,27 @@ struct AccountBarView: View {
 
     private func chip(for account: Account) -> some View {
         let active = account.id == store.activeId
+        let count = unread[account.id] ?? 0
         return Button(action: { store.activate(account.id) }) {
-            Text(account.name)
-                .font(.system(size: 13, weight: active ? .semibold : .regular))
-                .foregroundColor(active ? .white : Color(white: 0.2))
-                .lineLimit(1)
-                .padding(.horizontal, 12)
-                .frame(height: 28)
-                .background(active ? Color.blue : Color(white: 0.95))
-                .clipShape(Capsule())
+            HStack(spacing: 4) {
+                Text(account.name)
+                    .font(.system(size: 13, weight: active ? .semibold : .regular))
+                    .foregroundColor(active ? .white : Color(white: 0.2))
+                    .lineLimit(1)
+                if count > 0 {
+                    Text(count > 99 ? "99+" : "\(count)")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 4)
+                        .frame(minWidth: 16, minHeight: 16)
+                        .background(Color.red)
+                        .clipShape(Capsule())
+                }
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 28)
+            .background(active ? Color.blue : Color(white: 0.95))
+            .clipShape(Capsule())
         }
         .buttonStyle(.plain)
         .contextMenu {

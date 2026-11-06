@@ -16,7 +16,7 @@ enum WebViewFactory {
         return URL(string: "https://mms.pinduoduo.com/login/?redirectUrl=\(encoded)")!
     }
 
-    static func make(for account: Account) -> WKWebView {
+    static func make(for account: Account, bridge: UnreadBridge) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = dataStore(for: account)
         configuration.allowsInlineMediaPlayback = true
@@ -27,6 +27,13 @@ enum WebViewFactory {
         Injection.scripts().forEach {
             configuration.userContentController.addUserScript($0)
         }
+        // 未读上报 + 保活脚本
+        configuration.userContentController.addUserScript(
+            WKUserScript(source: UnreadScript.source,
+                         injectionTime: .atDocumentEnd,
+                         forMainFrameOnly: false)
+        )
+        configuration.userContentController.add(bridge, name: "pddUnread")
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.allowsBackForwardNavigationGestures = false

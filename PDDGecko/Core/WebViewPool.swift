@@ -1,20 +1,40 @@
 import Foundation
 import WebKit
 
-/// 每个账号一个 WKWebView，切换只切显示，不销毁；最多保留 3 个，超出时释放最久未用的。
+/// 每个账号一个 WKWebView，全部保持在视图层级中（只用透明度区分当前显示），
+/// 这样未选中的账号也持续收消息；同时定期唤醒 JS，避免 WebKit 节流导致掉线。
 @MainActor
 final class WebViewPool: ObservableObject {
+    @Published private(set) var unread: [String: Int] = [:]
+
     private var views: [String: WKWebView] = [:]
+    private var bridges: [String: UnreadBridge] = [:]
     private var order: [String] = []
+    private var keepAliveTimer: Timer?
 
     private let limit = 3
+
+    init() {
+        keepAliveTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.keepAlive()
+            }
+        }
+    }
 
     func view(for account: Account) -> WKWebView {
         if let cached = views[account.id] {
             touch(account.id)
             return cached
         }
-        let created = WebViewFactory.make(for: account)
+        let bridge = UnreadBridge(accountId: account.id) { [weak self] accountId, count in
+            guard let self else { return }
+            if self.unread[accountId] != count {
+                self.unread[accountId] = count
+            }
+        }
+        bridges[account.id] = bridge
+        let created = WebViewFactory.make(for: account, bridge: bridge)
         views[account.id] = created
         order.append(account.id)
         trimIfNeeded()
@@ -30,11 +50,27 @@ final class WebViewPool: ObservableObject {
         views[id]?.stopLoading()
         views[id]?.removeFromSuperview()
         views[id] = nil
+        bridges[id] = nil
+        unread[id] = nil
         order.removeAll { $0 == id }
     }
 
     func existing(_ id: String) -> WKWebView? {
         views[id]
+    }
+
+    func unreadCount(for id: String) -> Int {
+        unread[id] ?? 0
+    }
+
+    /// 定期让所有账号的网页执行一次 JS：保持 WebSocket/定时器活跃，避免被系统节流。
+    private func keepAlive() {
+        for (_, webView) in views {
+            webView.evaluateJavaScript(
+                "window.__pddTick ? window.__pddTick() : null",
+                completionHandler: nil
+            )
+        }
     }
 
     private func touch(_ id: String) {
@@ -49,6 +85,8 @@ final class WebViewPool: ObservableObject {
             views[oldest]?.stopLoading()
             views[oldest]?.removeFromSuperview()
             views[oldest] = nil
+            bridges[oldest] = nil
+            unread[oldest] = nil
         }
     }
 }
