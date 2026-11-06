@@ -6,6 +6,7 @@ import AudioToolbox
 struct ContentView: View {
     @StateObject private var store = AccountStore()
     @StateObject private var pool = WebViewPool()
+    @StateObject private var network = NetworkMonitor()
 
     @State private var showAdd = false
     @State private var addName = ""
@@ -17,6 +18,7 @@ struct ContentView: View {
     @State private var moreMenu = false
     @State private var diagText = ""
     @State private var showDiag = false
+    @State private var isOffline = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -41,14 +43,29 @@ struct ContentView: View {
 
             // 所有账号的 WebView 挂在同一个容器里（非当前账号透明度极低但仍在视图树），
             // 这样后台账号也能持续收消息，只在 chip 上显示未读数。
-            WebViewsHost(accounts: store.accounts, activeId: store.activeId, pool: pool)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            ZStack {
+                WebViewsHost(accounts: store.accounts, activeId: store.activeId, pool: pool)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                if isOffline {
+                    offlineOverlay
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color.white)
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
             pool.onNewMessage = {
                 AudioServicesPlaySystemSound(1007)
+            }
+            network.onReconnect = {
+                isOffline = false
+                pool.reloadAll()
+                showToast("网络已恢复，正在刷新")
+            }
+            if !network.online {
+                isOffline = true
             }
         }
         .alert("未读检测诊断", isPresented: $showDiag) {
@@ -128,8 +145,46 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .pddNetworkError)) { note in
             if let error = note.object as? Error {
-                showToast("网络异常：\((error as NSError).code)")
+                let code = (error as NSError).code
+                // 断网/超时类错误：显示离线提示，保留页面已有内容
+                if code == NSURLErrorNotConnectedToInternet
+                    || code == NSURLErrorNetworkConnectionLost
+                    || code == NSURLErrorTimedOut
+                    || code == NSURLErrorCannotFindHost
+                    || code == NSURLErrorCannotConnectToHost {
+                    isOffline = true
+                } else {
+                    showToast("网络异常：\(code)")
+                }
             }
+        }
+    }
+
+    /// 断网提示：半透明覆盖，页面已有内容仍可见，不白屏。
+    private var offlineOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.25)
+                .ignoresSafeArea()
+            VStack(spacing: 10) {
+                Image(systemName: "wifi.exclamationmark")
+                    .font(.system(size: 34))
+                    .foregroundColor(.white)
+                Text("网络不可用")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                Text("已保留上次内容，网络恢复后自动刷新")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.85))
+                Button("重试") {
+                    isOffline = false
+                    pool.reloadAll()
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, 4)
+            }
+            .padding(24)
+            .background(Color.black.opacity(0.55))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
 

@@ -74,6 +74,15 @@ final class WebViewPool: ObservableObject {
         unread[id] ?? 0
     }
 
+    /// 网络恢复时重载所有账号页面（已加载过的），避免停留在错误页。
+    func reloadAll() {
+        for (_, webView) in views {
+            if webView.url != nil {
+                webView.reload()
+            }
+        }
+    }
+
     /// 定期让所有账号的网页执行一次 JS：保持 WebSocket/定时器活跃，避免被系统节流。
     private func keepAlive() {
         for (_, webView) in views {
