@@ -7,12 +7,19 @@ import WebKit
 final class WebViewPool: ObservableObject {
     @Published private(set) var unread: [String: Int] = [:]
 
+    /// 未读总数增加时触发（用于统一播放提示音，不依赖各页面自己的音频）。
+    var onNewMessage: (() -> Void)?
+
     private var views: [String: WKWebView] = [:]
     private var bridges: [String: UnreadBridge] = [:]
     private var order: [String] = []
     private var keepAliveTimer: Timer?
 
     private let limit = 3
+
+    var totalUnread: Int {
+        unread.values.reduce(0, +)
+    }
 
     init() {
         keepAliveTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
@@ -29,8 +36,12 @@ final class WebViewPool: ObservableObject {
         }
         let bridge = UnreadBridge(accountId: account.id) { [weak self] accountId, count in
             guard let self else { return }
+            let before = self.totalUnread
             if self.unread[accountId] != count {
                 self.unread[accountId] = count
+            }
+            if self.totalUnread > before {
+                self.onNewMessage?()
             }
         }
         bridges[account.id] = bridge

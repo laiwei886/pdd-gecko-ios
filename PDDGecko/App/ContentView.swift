@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import AudioToolbox
 
 /// 主界面：顶部账号栏 + 当前账号的 WKWebView。
 struct ContentView: View {
@@ -14,6 +15,8 @@ struct ContentView: View {
     @State private var toast: String?
     @State private var listOpen = false
     @State private var moreMenu = false
+    @State private var diagText = ""
+    @State private var showDiag = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -43,6 +46,16 @@ struct ContentView: View {
         }
         .background(Color.white)
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .onAppear {
+            pool.onNewMessage = {
+                AudioServicesPlaySystemSound(1007)
+            }
+        }
+        .alert("未读检测诊断", isPresented: $showDiag) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text(diagText)
+        }
         .overlay(alignment: .top) {
             if let toast {
                 Text(toast)
@@ -106,6 +119,7 @@ struct ContentView: View {
             Button("收藏/取消收藏") { tapSelector("[class*='collect'], [class*='star']", label: "收藏") }
             Button("加入黑名单") { tapSelector("[class*='black'], [class*='block']", label: "黑名单") }
             Button("备注") { tapSelector("[class*='remark'], [class*='note']", label: "备注") }
+            Button("诊断未读检测") { diagnoseUnread() }
             Button("刷新页面") { reloadPage() }
             Button("取消", role: .cancel) {}
         }
@@ -176,6 +190,21 @@ struct ContentView: View {
               let webView = pool.existing(account.id) else { return }
         webView.reload()
         showToast("已刷新")
+    }
+
+    /// 诊断：把页面里匹配到的未读候选元素回传，便于调整选择器。
+    private func diagnoseUnread() {
+        guard let account = store.activeAccount,
+              let webView = pool.existing(account.id) else { return }
+        let js = "window.__pddDiagnose ? window.__pddDiagnose() : '脚本未注入'"
+        webView.evaluateJavaScript(js) { result, error in
+            if let error {
+                diagText = "执行失败：\(error.localizedDescription)"
+            } else {
+                diagText = String(describing: result ?? "无返回")
+            }
+            showDiag = true
+        }
     }
 
     /// 顶部返回键：优先关会话列表，其次回会话列表，再次走浏览历史，最后回工作台。

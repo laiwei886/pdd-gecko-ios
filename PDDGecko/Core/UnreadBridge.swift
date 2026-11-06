@@ -27,22 +27,43 @@ final class UnreadBridge: NSObject, WKScriptMessageHandler {
     }
 }
 
-/// 网页侧脚本：定期统计未读角标，并把未读数上报给原生。
+/// 网页侧脚本：统计未读角标并上报；另提供诊断函数，便于排查选择器。
 enum UnreadScript {
     static let source = """
     (function () {
       if (window.__pddUnreadInstalled) { return; }
       window.__pddUnreadInstalled = true;
 
+      var SELECTORS = [
+        '[class*="unread"]', '[class*="Unread"]', '[class*="UNREAD"]',
+        '[class*="badge"]', '[class*="Badge"]',
+        '[class*="red-dot"]', '[class*="redDot"]',
+        '[class*="msg-count"]', '[class*="msgCount"]',
+        '[class*="dot"]', '[class*="count"]'
+      ];
+
+      function pickNumber(el) {
+        var text = (el.textContent || '').trim();
+        var m = text.match(/(\\d+)/);
+        if (m) { return parseInt(m[1], 10); }
+        if (/99\\+|99/.test(text)) { return 99; }
+        return 0;
+      }
+
       function collectCount() {
         var total = 0;
-        var nodes = document.querySelectorAll('[class*="unread"], [class*="Unread"], .badge, .msg-count, [class*="red-dot"]');
-        for (var i = 0; i < nodes.length; i += 1) {
-          var el = nodes[i];
-          var text = (el.textContent || '').trim();
-          var m = text.match(/(\\d+)/);
-          if (m) { total += parseInt(m[1], 10); }
-          else if (text.indexOf('99') >= 0) { total += 99; }
+        var seen = [];
+        for (var s = 0; s < SELECTORS.length; s += 1) {
+          var nodes = document.querySelectorAll(SELECTORS[s]);
+          for (var i = 0; i < nodes.length; i += 1) {
+            var el = nodes[i];
+            if (seen.indexOf(el) >= 0) { continue; }
+            seen.push(el);
+            // 只统计可见且有数字（或有红点）的元素
+            var style = window.getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden') { continue; }
+            total += pickNumber(el);
+          }
         }
         return total;
       }
@@ -56,14 +77,21 @@ enum UnreadScript {
       }
 
       window.__pddTick = report;
-      setInterval(report, 15000);
-      setTimeout(report, 3000);
+      window.__pddDiagnose = function () {
+        var out = { title: document.title, url: location.href, candidates: [] };
+        var nodes = document.querySelectorAll('[class*="unread"],[class*="badge"],[class*="dot"],[class*="count"]');
+        for (var i = 0; i < nodes.length && i < 15; i += 1) {
+          out.candidates.push({
+            cls: String(nodes[i].className || ''),
+            text: (nodes[i].textContent || '').trim().slice(0, 16)
+          });
+        }
+        out.count = collectCount();
+        return JSON.stringify(out);
+      };
 
-      // 让页面认为自己始终可见，避免被判定 hidden 后自动切换成“店铺休息”
-      try {
-        Object.defineProperty(document, 'hidden', { get: function () { return false; } });
-        Object.defineProperty(document, 'visibilityState', { get: function () { return 'visible'; } });
-      } catch (e) { /* 已有只读属性时忽略 */ }
+      setInterval(report, 8000);
+      setTimeout(report, 2500);
     })();
     """
 }
