@@ -59,7 +59,12 @@ struct VerifyWebView: UIViewRepresentable {
     let pool: WebViewPool
     let onSuccess: () -> Void
 
-    func makeCoordinator(context: Context) -> Coordinator { Coordinator() }
+    class Coordinator {
+        var timer: Timer?
+        deinit { timer?.invalidate() }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> WKWebView {
         // 新建验证专用 WebView，但共享同一 dataStore（Cookie 一致）
@@ -86,9 +91,4 @@ struct VerifyWebView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
-
-    class Coordinator {
-        var timer: Timer?
-        deinit { timer?.invalidate() }
-    }
 }
