@@ -206,3 +206,4 @@ struct PasswordLoginView: View {
             }
         }
     }
+}
