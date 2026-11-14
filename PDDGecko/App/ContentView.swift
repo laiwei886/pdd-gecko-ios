@@ -271,4 +271,64 @@ struct ContentView: View {
     @EnvironmentObject private var pool: WebViewPool
     @State private var showWebViewScreen = false
 
+    var body: some View {
+        VStack(spacing: 0) {
+            // 账号栏固定在顶部：切账号 / 新增 / 数据层入口
+            HStack(spacing: 8) {
+                ForEach(accountStore.accounts) { account in
+                    let active = account.id == accountStore.activeId
+                    Button(action: { accountStore.activate(account.id) }) {
+                        HStack(spacing: 4) {
+                            Text(account.name)
+                                .font(.system(size: 13, weight: active ? .semibold : .regular))
+                                .foregroundColor(active ? .white : Color(white: 0.2))
+                            let unread = pool.unread[account.id] ?? 0
+                            if unread > 0 {
+                                Text(unread > 99 ? "99+" : "\(unread)")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 4)
+                                    .frame(minWidth: 16, minHeight: 16)
+                                    .background(Color.red)
+                                    .clipShape(Capsule())
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .frame(height: 28)
+                        .background(active ? Color.blue : Color(white: 0.95))
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button(action: { showWebViewScreen = true }) {
+                    Image(systemName: "globe")
+                        .font(.system(size: 14))
+                        .foregroundColor(.blue)
+                        .frame(width: 32, height: 28)
+                        .background(Color.blue.opacity(0.08))
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("打开网页版")
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(Color.white)
+            .overlay(alignment: .bottom) { Divider() }
+
+            // 隐藏数据层的宿主：保持在窗口里，保证采集与登录态活跃
+            WebViewsHost(accounts: accountStore.accounts,
+                         activeId: accountStore.activeId,
+                         pool: pool)
+                .frame(width: 0, height: 0)
+                .opacity(0.001)
+
+            Spacer()
+        }
+        .background(Color.white)
+        .sheet(isPresented: $showWebViewScreen) {
+            WebViewScreen()
+        }
+    }
 }
