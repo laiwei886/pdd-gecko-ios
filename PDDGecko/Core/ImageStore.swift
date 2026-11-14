@@ -43,23 +43,24 @@ final class ImageStore: ObservableObject {
 
     /// 请求图片：有本地文件直接回调；没有则排队下载。
     func request(_ url: String, completion: ((URL?) -> Void)? = nil) {
+        let wrapped: (URL?) -> Void = completion ?? { _ in }
         guard url.lowercased().hasPrefix("http") else {
-            completion?(nil)
+            wrapped(nil)
             return
         }
         if isAvailable(url) {
-            completion?(localPath(for: url))
+            wrapped(localPath(for: url))
             return
         }
         let tries = failures[url] ?? 0
         if tries >= maxRetry {
-            completion?(nil)
+            wrapped(nil)
             return
         }
         if !queue.contains(url) && !inFlight.contains(url) {
             queue.append(url)
         }
-        pendingCompletions[url, default: []].append(completion)
+        pendingCompletions[url, default: []].append(wrapped)
         pump()
     }
 
@@ -108,7 +109,7 @@ final class ImageStore: ObservableObject {
         pendingCompletions[url] = nil
         let path: URL? = success ? localPath(for: url) : nil
         for completion in completions {
-            completion?(path)
+            completion(path)
         }
         revision += 1
         pump()
