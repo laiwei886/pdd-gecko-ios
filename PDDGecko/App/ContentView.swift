@@ -2,10 +2,11 @@ import SwiftUI
 import WebKit
 import AudioToolbox
 
-/// 主界面：顶部账号栏 + 当前账号的 WKWebView。
-struct ContentView: View {
-    @StateObject private var store = AccountStore()
-    @StateObject private var pool = WebViewPool()
+/// 网页视图页：挂在“聊天”Tab 内作为数据层入口（隐藏 WebView 仍需可见才能活跃）。
+/// 用户点账号 chip 或“更多”时切换到此页；日常聊天用原生界面。
+struct WebViewScreen: View {
+    @EnvironmentObject private var accountStore: AccountStore
+    @EnvironmentObject private var pool: WebViewPool
     @StateObject private var network = NetworkMonitor()
 
     @State private var showAdd = false
@@ -14,7 +15,6 @@ struct ContentView: View {
     @State private var renameText = ""
     @State private var deleteTarget: Account?
     @State private var toast: String?
-    @State private var listOpen = false
     @State private var moreMenu = false
     @State private var diagText = ""
     @State private var showDiag = false
@@ -23,10 +23,10 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 0) {
             AccountBarView(
-                store: store,
+                store: accountStore,
                 unread: pool.unread,
                 onAdd: {
-                    addName = "账号\(store.accounts.count + 1)"
+                    addName = "账号\(accountStore.accounts.count + 1)"
                     showAdd = true
                 },
                 onRename: { account in
@@ -41,10 +41,10 @@ struct ContentView: View {
                 onMore: { moreMenu = true }
             )
 
-            // 所有账号的 WebView 挂在同一个容器里（非当前账号透明度极低但仍在视图树），
-            // 这样后台账号也能持续收消息，只在 chip 上显示未读数。
             ZStack {
-                WebViewsHost(accounts: store.accounts, activeId: store.activeId, pool: pool)
+                WebViewsHost(accounts: accountStore.accounts,
+                             activeId: accountStore.activeId,
+                             pool: pool)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 if isOffline {
@@ -68,31 +68,13 @@ struct ContentView: View {
                 isOffline = true
             }
         }
-        .alert("未读检测诊断", isPresented: $showDiag) {
-            Button("好", role: .cancel) {}
-        } message: {
-            Text(diagText)
-        }
-        .overlay(alignment: .top) {
-            if let toast {
-                Text(toast)
-                    .font(.system(size: 13))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(Color.black.opacity(0.78))
-                    .clipShape(Capsule())
-                    .padding(.top, 8)
-                    .transition(.opacity)
-            }
-        }
         .alert("新增账号", isPresented: $showAdd) {
             TextField("账号名称", text: $addName)
             Button("取消", role: .cancel) {}
             Button("确定") {
                 let name = addName.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !name.isEmpty else { return }
-                let account = store.add(name: name)
+                let account = accountStore.add(name: name)
                 pool.loadLogin(for: account)
             }
         } message: {
@@ -106,7 +88,7 @@ struct ContentView: View {
             Button("取消", role: .cancel) { renameTargetId = nil }
             Button("保存") {
                 if let id = renameTargetId {
-                    store.rename(id, to: renameText.trimmingCharacters(in: .whitespacesAndNewlines))
+                    accountStore.rename(id, to: renameText.trimmingCharacters(in: .whitespacesAndNewlines))
                 }
                 renameTargetId = nil
             }
@@ -122,13 +104,17 @@ struct ContentView: View {
             Button("确认删除", role: .destructive) {
                 pool.remove(account.id)
                 WebViewFactory.clearData(for: account)
-                store.remove(account.id)
-                listOpen = false
+                accountStore.remove(account.id)
                 deleteTarget = nil
             }
             Button("取消", role: .cancel) { deleteTarget = nil }
         } message: { account in
             Text("将清除“\(account.name)”的登录状态与本地数据，其他账号不受影响。")
+        }
+        .alert("未读检测诊断", isPresented: $showDiag) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text(diagText)
         }
         .confirmationDialog("更多操作", isPresented: $moreMenu, titleVisibility: .visible) {
             Button("订单") { handleOrders() }
@@ -146,7 +132,6 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .pddNetworkError)) { note in
             if let error = note.object as? Error {
                 let code = (error as NSError).code
-                // 断网/超时类错误：显示离线提示，保留页面已有内容
                 if code == NSURLErrorNotConnectedToInternet
                     || code == NSURLErrorNetworkConnectionLost
                     || code == NSURLErrorTimedOut
@@ -188,19 +173,31 @@ struct ContentView: View {
         }
     }
 
-    private func toggleList() {
-        guard let account = store.activeAccount,
+    private func handleBack() {
+        guard let account = accountStore.activeAccount,
               let webView = pool.existing(account.id) else { return }
-        listOpen.toggle()
-        let js = listOpen
-            ? "document.body.classList.add('pdd-mobile-drawer');"
-            : "document.body.classList.remove('pdd-mobile-drawer');"
-        webView.evaluateJavaScript(js, completionHandler: nil)
+        let url = webView.url?.absoluteString ?? ""
+        webView.evaluateJavaScript("document.body.classList.contains('pdd-mobile-drawer')") { result, _ in
+            if let open = result as? Bool, open {
+                webView.evaluateJavaScript("document.body.classList.remove('pdd-mobile-drawer')")
+                return
+            }
+            if url.contains("chat-merchant") {
+                webView.evaluateJavaScript("document.body.classList.add('pdd-mobile-drawer')")
+                return
+            }
+            if webView.canGoBack {
+                webView.goBack()
+            } else if url.contains("/login") {
+                webView.load(URLRequest(url: WebViewFactory.startURL))
+            } else {
+                webView.evaluateJavaScript("document.body.classList.add('pdd-mobile-drawer')")
+            }
+        }
     }
 
-    /// 订单入口：切换网页版的订单面板（与安卓壳同一套 class）。
     private func handleOrders() {
-        guard let account = store.activeAccount,
+        guard let account = accountStore.activeAccount,
               let webView = pool.existing(account.id) else { return }
         let js = """
         (function () {
@@ -214,9 +211,8 @@ struct ContentView: View {
         }
     }
 
-    /// 在网页里点击指定选择器；找不到就提示网页版不支持，避免静默失败。
     private func tapSelector(_ selector: String, label: String) {
-        guard let account = store.activeAccount,
+        guard let account = accountStore.activeAccount,
               let webView = pool.existing(account.id) else { return }
         let js = """
         (function () {
@@ -241,15 +237,14 @@ struct ContentView: View {
     }
 
     private func reloadPage() {
-        guard let account = store.activeAccount,
+        guard let account = accountStore.activeAccount,
               let webView = pool.existing(account.id) else { return }
         webView.reload()
         showToast("已刷新")
     }
 
-    /// 诊断：把页面里匹配到的未读候选元素回传，便于调整选择器。
     private func diagnoseUnread() {
-        guard let account = store.activeAccount,
+        guard let account = accountStore.activeAccount,
               let webView = pool.existing(account.id) else { return }
         let js = "window.__pddDiagnose ? window.__pddDiagnose() : '脚本未注入'"
         webView.evaluateJavaScript(js) { result, error in
@@ -262,33 +257,6 @@ struct ContentView: View {
         }
     }
 
-    /// 顶部返回键：优先关会话列表，其次回会话列表，再次走浏览历史，最后回工作台。
-    private func handleBack() {
-        guard let account = store.activeAccount,
-              let webView = pool.existing(account.id) else { return }
-        let url = webView.url?.absoluteString ?? ""
-        webView.evaluateJavaScript("document.body.classList.contains('pdd-mobile-drawer')") { result, _ in
-            if let open = result as? Bool, open {
-                webView.evaluateJavaScript("document.body.classList.remove('pdd-mobile-drawer')")
-                listOpen = false
-                return
-            }
-            if url.contains("chat-merchant") {
-                webView.evaluateJavaScript("document.body.classList.add('pdd-mobile-drawer')")
-                listOpen = true
-                return
-            }
-            if webView.canGoBack {
-                webView.goBack()
-            } else if url.contains("/login") {
-                webView.load(URLRequest(url: WebViewFactory.startURL))
-            } else {
-                webView.evaluateJavaScript("document.body.classList.add('pdd-mobile-drawer')")
-                listOpen = true
-            }
-        }
-    }
-
     private func showToast(_ text: String) {
         toast = text
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
@@ -297,23 +265,10 @@ struct ContentView: View {
     }
 }
 
-/// 把 WKWebView 放进 SwiftUI；同一个 WKWebView 实例可反复挂载，页面状态保留。
-struct WebViewContainer: UIViewRepresentable {
-    let webView: WKWebView
+/// 主界面（阶段 A）：TabView 骨架 + 账号栏入口。
+struct ContentView: View {
+    @EnvironmentObject private var accountStore: AccountStore
+    @EnvironmentObject private var pool: WebViewPool
+    @State private var showWebViewScreen = false
 
-    func makeUIView(context: Context) -> UIView {
-        let container = UIView()
-        container.backgroundColor = .white
-        webView.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(webView)
-        NSLayoutConstraint.activate([
-            webView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            webView.topAnchor.constraint(equalTo: container.topAnchor),
-            webView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
-        ])
-        return container
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {}
 }

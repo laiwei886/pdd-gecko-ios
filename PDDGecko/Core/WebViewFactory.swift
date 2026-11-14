@@ -34,6 +34,8 @@ enum WebViewFactory {
                          forMainFrameOnly: false)
         )
         configuration.userContentController.add(bridge, name: "pddUnread")
+        // 数据采集（会话列表等）
+        Collector.install(to: configuration, bridge: collectorBridge(for: account))
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.allowsBackForwardNavigationGestures = false
@@ -43,6 +45,15 @@ enum WebViewFactory {
         webView.uiDelegate = NavigationGuard.shared
         webView.load(URLRequest(url: startURL))
         return webView
+    }
+
+    /// 每个账号一个采集 Bridge，事件统一转发到 DataStore。
+    private func collectorBridge(for account: Account) -> Collector.Bridge {
+        Collector.Bridge(accountId: account.id) { accountId, _, payload in
+            Task { @MainActor in
+                Collector.handlePayload(payload, accountId: accountId, store: DataStore.shared)
+            }
+        }
     }
 
     /// iOS 17+ 用按 identifier 隔离的持久化存储；低版本回退默认存储（此时不支持多账号隔离）。
