@@ -68,6 +68,10 @@ struct WebViewScreen: View {
                 isOffline = true
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .pddAddAccount)) { _ in
+            addName = "账号\(accountStore.accounts.count + 1)"
+            showAdd = true
+        }
         .alert("新增账号", isPresented: $showAdd) {
             TextField("账号名称", text: $addName)
             Button("取消", role: .cancel) {}
