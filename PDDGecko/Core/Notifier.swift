@@ -22,7 +22,7 @@ final class Notifier: ObservableObject {
                 }
                 if granted {
                     // 后台也允许弹横幅
-                    center.setNotificationDelegate(NotificationDelegate.shared)
+                    center.delegate = NotificationDelegate.shared
                 }
             }
         }

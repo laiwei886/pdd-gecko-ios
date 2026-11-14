@@ -11,6 +11,7 @@ struct PasswordLoginView: View {
     @State private var password = ""
     @State private var status: String = ""
     @State private var busy = false
+    @State private var showSliderVerify = false
 
     var body: some View {
         NavigationView {
@@ -64,6 +65,13 @@ struct PasswordLoginView: View {
                 }
                 .padding(.horizontal, 24)
                 .disabled(username.isEmpty || password.isEmpty || busy)
+
+                // 滑块验证面板：出现时全屏覆盖，App 内直接拖动
+                if showSliderVerify {
+                    SliderVerifyView(account: account)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .transition(.opacity)
+                }
 
                 VStack(spacing: 4) {
                     Text("密码仅用于本次在网页登录框中代填，")
@@ -139,23 +147,62 @@ struct PasswordLoginView: View {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             webView.evaluateJavaScript(js) { result, error in
-                busy = false
                 if let error {
+                    busy = false
                     status = "执行失败：\(error.localizedDescription)"
                     return
                 }
                 let value = (result as? String) ?? "unknown"
                 switch value {
                 case "submitted":
-                    status = "已提交，请在网页通道确认登录结果（可能需要滑块验证）"
-                    // 提示用户打开网页通道查看
-                    NotificationCenter.default.post(name: .pddOpenWebView, object: nil)
+                    // 提交后轮询检测滑块：出现则弹出内嵌验证面板（App 内拖动）
+                    status = "已提交，检测安全验证…"
+                    pollForSlider()
                 case "noform":
-                    status = "未找到登录表单，请点“重试”或用 🌐 网页版登录"
+                    busy = false
+                    status = "未找到登录表单，请点“重试”"
                 default:
+                    busy = false
                     status = "未知返回：\(value)"
                 }
             }
         }
     }
-}
+
+    /// 轮询检测滑块弹层：出现 → 弹出内嵌验证面板；登录成功 → 关闭全部。
+    private func pollForSlider() {
+        guard let webView = pool.existing(account.id) else {
+            busy = false
+            return
+        }
+        var attempts = 0
+        Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { timer in
+            attempts += 1
+            webView.evaluateJavaScript(
+                "document.querySelector('[class*=\"captcha\"], [class*=\"verify\"], [class*=\"slider\"]') !== null"
+            ) { result, _ in
+                let hasSlider = (result as? Bool) ?? false
+                let url = webView.url?.absoluteString ?? ""
+                let loggedIn = url.contains("chat-merchant")
+
+                if loggedIn {
+                    timer.invalidate()
+                    busy = false
+                    status = "登录成功"
+                    dismiss()
+                    return
+                }
+                if hasSlider {
+                    timer.invalidate()
+                    status = "需要安全验证"
+                    showSliderVerify = true
+                    return
+                }
+                if attempts > 20 {
+                    timer.invalidate()
+                    busy = false
+                    status = "未检测到登录结果，请重试或用 🌐 网页版"
+                }
+            }
+        }
+    }
