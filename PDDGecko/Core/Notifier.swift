@@ -16,11 +16,11 @@ final class Notifier: ObservableObject {
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             Task { @MainActor in
-                authorized = granted
                 if let error {
                     Log.e("通知授权失败：\(error.localizedDescription)")
                 }
                 if granted {
+                    self.authorized = true
                     // 后台也允许弹横幅
                     center.delegate = NotificationDelegate.shared
                 }
