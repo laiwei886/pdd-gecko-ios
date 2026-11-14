@@ -29,7 +29,7 @@ final class WebViewPool: ObservableObject {
         }
     }
 
-    func view(for account: Account) -> WKWebView {
+    func view(for account: Account, accounts: [Account] = []) -> WKWebView {
         if let cached = views[account.id] {
             touch(account.id)
             return cached
@@ -42,6 +42,10 @@ final class WebViewPool: ObservableObject {
             }
             if self.totalUnread > before {
                 self.onNewMessage?()
+                // 系统横幅通知（前台后台都弹）
+                if let account = accounts.first(where: { $0.id == accountId }) ?? self.accountOf(id: accountId) {
+                    Notifier.shared.update(account: account, unread: count)
+                }
             }
         }
         bridges[account.id] = bridge
@@ -50,6 +54,11 @@ final class WebViewPool: ObservableObject {
         order.append(account.id)
         trimIfNeeded()
         return created
+    }
+
+    /// 通过 ID 反查账号（通知需要显示账号名）。
+    func accountOf(id: String) -> Account? {
+        DataStore.shared.account(for: id)
     }
 
     func loadLogin(for account: Account) {

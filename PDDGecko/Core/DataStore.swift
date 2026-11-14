@@ -30,6 +30,18 @@ final class DataStore: ObservableObject {
     @Published private(set) var conversations: [Conversation] = []
     @Published private(set) var messages: [String: [ChatMessage]] = [:]   // key: conversationId
 
+    /// 供通知模块反查账号名。
+    private var accountNames: [String: String] = [:]
+
+    func registerAccountName(id: String, name: String) {
+        accountNames[id] = name
+    }
+
+    func account(for id: String) -> Account? {
+        guard let name = accountNames[id] else { return nil }
+        return Account(id: id, name: name, createdAt: Date())
+    }
+
     private var db: OpaquePointer?
     private let dbPath: String
 

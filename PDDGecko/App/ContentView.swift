@@ -61,6 +61,11 @@ struct WebViewScreen: View {
             pool.onNewMessage = {
                 AudioServicesPlaySystemSound(1007)
             }
+            Notifier.shared.requestAuthorization()
+            for account in accountStore.accounts {
+                DataStore.shared.registerAccountName(id: account.id, name: account.name)
+                _ = pool.view(for: account)
+            }
             network.onReconnect = {
                 isOffline = false
                 pool.reloadAll()
