@@ -19,6 +19,8 @@ struct WebViewScreen: View {
     @State private var diagText = ""
     @State private var showDiag = false
     @State private var isOffline = false
+    @State private var showPasswordLogin = false
+    @State private var loginAccount: Account?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -80,9 +82,17 @@ struct WebViewScreen: View {
                 guard !name.isEmpty else { return }
                 let account = accountStore.add(name: name)
                 pool.loadLogin(for: account)
+                loginAccount = account
+                showPasswordLogin = true
             }
         } message: {
-            Text("起个名字，确定后会打开扫码登录页。")
+            Text("起个名字，确定后进入账号密码登录。")
+        }
+        .sheet(isPresented: $showPasswordLogin) {
+            if let account = loginAccount {
+                PasswordLoginView(account: account)
+                    .environmentObject(pool)
+            }
         }
         .alert("重命名账号", isPresented: Binding(
             get: { renameTargetId != nil },

@@ -13,7 +13,8 @@ enum WebViewFactory {
         let encoded = startUrlString.addingPercentEncoding(
             withAllowedCharacters: .alphanumerics
         ) ?? startUrlString
-        return URL(string: "https://mms.pinduoduo.com/login/?redirectUrl=\(encoded)")!
+        // 账号密码登录页（不含二维码）
+        return URL(string: "https://mms.pinduoduo.com/login/?redirectUrl=\(encoded)&loginType=password")!
     }
 
     static func make(for account: Account, bridge: UnreadBridge) -> WKWebView {
