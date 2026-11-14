@@ -34,10 +34,12 @@ enum WebViewFactory {
                          forMainFrameOnly: false)
         )
         configuration.userContentController.add(bridge, name: "pddUnread")
-        // 数据采集（会话列表等）
+        // 数据采集（会话列表 + 图片 URL）
         let collector = Collector.Bridge(accountId: account.id) { accountId, _, payload in
             Task { @MainActor in
-                Collector.handlePayload(payload, accountId: accountId, store: DataStore.shared)
+                Collector.handlePayload(payload, accountId: accountId,
+                                        store: DataStore.shared,
+                                        images: ImageStore.shared)
             }
         }
         Collector.install(to: configuration, bridge: collector)

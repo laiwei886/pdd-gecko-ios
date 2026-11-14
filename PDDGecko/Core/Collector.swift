@@ -87,6 +87,47 @@ enum Collector {
     })();
     """
 
+    /// 图片 URL 采集脚本：全页面扫描 img 与 style 背景图，去重回传（供后台下载落盘）。
+    static let imagesScript = """
+    (function () {
+      if (window.__pddCollectImages) { return; }
+      window.__pddCollectImages = true;
+
+      function absolute(src) {
+        try { return new URL(src, location.href).href; } catch (e) { return ''; }
+      }
+
+      function collectImages() {
+        var found = {};
+        var imgs = document.querySelectorAll('img');
+        for (var i = 0; i < imgs.length; i++) {
+          var src = imgs[i].currentSrc || imgs[i].src || '';
+          if (src && /^https?:/.test(src)) { found[absolute(src)] = 1; }
+        }
+        // 背景图（商品卡等常用 style）
+        var all = document.querySelectorAll('*');
+        for (var j = 0; j < all.length; j++) {
+          var bg = getComputedStyle(all[j]).backgroundImage;
+          if (bg && bg.indexOf('url(') === 0) {
+            var m = bg.match(/url\\(["']?([^"')]+)["']?\\)/);
+            if (m && /^https?:/.test(m[1])) { found[absolute(m[1])] = 1; }
+          }
+        }
+        var urls = Object.keys(found);
+        if (urls.length === 0) { return; }
+        try {
+          window.webkit.messageHandlers.pddCollector.postMessage({
+            type: 'images',
+            urls: urls
+          });
+        } catch (e) { /* 忽略 */ }
+      }
+
+      setInterval(collectImages, 20000);
+      setTimeout(collectImages, 4000);
+    })();
+    """
+
     /// 注入到指定 WebView 的全部采集脚本。
     static func install(to configuration: WKWebViewConfiguration, bridge: Bridge) {
         configuration.userContentController.add(bridge, name: "pddCollector")
@@ -95,16 +136,30 @@ enum Collector {
                          injectionTime: .atDocumentEnd,
                          forMainFrameOnly: false)
         )
+        configuration.userContentController.addUserScript(
+            WKUserScript(source: imagesScript,
+                         injectionTime: .atDocumentEnd,
+                         forMainFrameOnly: false)
+        )
     }
 
     // MARK: - 解析与入库
 
-    /// 处理采集回传：解析 JSON → 构造会话 → 入库（线程安全由调用方保证在主线程）。
+    /// 处理采集回传：会话入库、图片 URL 入下载队列（线程安全由调用方保证在主线程）。
     @MainActor
-    static func handlePayload(_ body: Any, accountId: String, store: DataStore) {
+    static func handlePayload(_ body: Any, accountId: String, store: DataStore,
+                              images: ImageStore? = nil) {
         guard let obj = body as? [String: Any],
-              let type = obj["type"] as? String,
-              type == "conversations",
+              let type = obj["type"] as? String else { return }
+
+        if type == "images", let urls = obj["urls"] as? [String] {
+            for url in urls {
+                images?.request(url)
+            }
+            return
+        }
+
+        guard type == "conversations",
               let list = obj["list"] as? [[String: Any]] else { return }
 
         var result: [DataStore.Conversation] = []
